@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound Mirror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #f0ece4;
+  --muted: #666;
+  --rule: rgba(240,236,228,0.08);
+  --accent: #c8a96e;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: 'DM Sans', sans-serif; overflow: hidden; }
+
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 999;
+}
+
+.view {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+  overflow-y: auto; overflow-x: hidden;
+}
+.view.active { opacity: 1; pointer-events: all; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+/* ══════════════════════════════
+   VIEW 1 — WELCOME
+   ══════════════════════════════ */
+#view-welcome { padding: 40px 24px; text-align: center; position: relative; }
+.orb { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+.orb-1 { width: 400px; height: 400px; background: rgba(120,60,200,0.12); top: -100px; left: -100px; animation: drift1 12s ease-in-out infinite alternate; }
+.orb-2 { width: 300px; height: 300px; background: rgba(200,100,40,0.08); bottom: -80px; right: -60px; animation: drift2 9s ease-in-out infinite alternate; }
+.orb-3 { width: 200px; height: 200px; background: rgba(40,100,200,0.1); top: 40%; left: 60%; animation: drift1 15s ease-in-out 3s infinite alternate; }
+@keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(30px,20px)} }
+@keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(-20px,30px)} }
+
+.welcome-inner { position: relative; z-index: 2; max-width: 480px; animation: fadeUp 1s ease forwards; }
+.welcome-logo { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); margin-bottom: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.logo-mark { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(200,169,110,0.4); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--accent); animation: logoPulse 3s ease-in-out infinite; }
+@keyframes logoPulse { 0%,100%{box-shadow:0 0 0 0 rgba(200,169,110,0.3)} 50%{box-shadow:0 0 0 8px rgba(200,169,110,0)} }
+.welcome-title { font-family: 'Playfair Display', serif; font-size: clamp(48px,12vw,88px); font-weight: 700; line-height: 0.92; letter-spacing: -0.02em; }
+.welcome-title em { font-style: italic; font-weight: 400; color: rgba(240,236,228,0.4); }
+.welcome-sub { font-family: 'Playfair Display', serif; font-size: 17px; font-style: italic; color: var(--muted); margin-top: 20px; margin-bottom: 48px; line-height: 1.6; }
+.welcome-meta { display: flex; justify-content: center; gap: 28px; margin-bottom: 40px; }
+.meta-item { text-align: center; }
+.meta-num { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+.meta-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.meta-divider { width: 1px; background: var(--rule); align-self: stretch; }
+.btn-start { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; padding: 16px 40px; background: var(--fg); color: var(--bg); border: none; cursor: pointer; border-radius: 2px; transition: opacity 0.2s, transform 0.2s; position: relative; overflow: hidden; }
+.btn-start::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.1); transform: translateX(-100%); transition: transform 0.3s ease; }
+.btn-start:hover::after { transform: translateX(0); }
+.btn-start:hover { transform: translateY(-1px); }
+.welcome-hint { margin-top: 20px; font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(102,102,102,0.6); letter-spacing: 0.1em; }
+
+
+/* ══════════════════════════════
+   VIEW 2 — A/B ROUND
+   ══════════════════════════════ */
+#view-round { justify-content: flex-start; padding-bottom: 24px; }
+.round-header { width: 100%; max-width: 780px; padding: 28px 24px 16px; flex-shrink: 0; }
+.progress-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.progress-track { flex: 1; height: 2px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
+.progress-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--muted); white-space: nowrap; }
+.round-top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.round-question { font-family: 'Playfair Display', serif; font-size: clamp(14px,2.8vw,17px); font-style: italic; color: rgba(240,236,228,0.5); text-align: left; line-height: 1.5; padding: 0 8px 0 0; flex: 1; }
+.round-back {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s, border-color 0.18s, opacity 0.18s;
+}
+.round-back:hover {
+  background: rgba(240,236,228,0.06);
+  color: var(--fg);
+  border-color: rgba(240,236,228,0.25);
+}
+
+.cards-area { width: 100%; max-width: 780px; padding: 16px 24px 8px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; flex: 1; }
+.vs-badge { font-family: 'Playfair Display', serif; font-size: 13px; font-style: italic; color: rgba(240,236,228,0.15); user-select: none; padding-top: 48px; }
+
+.music-card {
+  position: relative;
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(200,169,110,0.46), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(120,80,255,0.5), transparent 55%);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, opacity 0.25s ease;
+}
+.music-card-inner {
+  background: radial-gradient(circle at 0 0, rgba(255,255,255,0.08), rgba(16,16,16,0.96));
+  border-radius: 12px;
+  padding: 18px 16px 14px;
+  border: 1px solid rgba(240,236,228,0.12);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+}
+.music-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.16), transparent 60%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.music-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 26px 60px rgba(0,0,0,0.9);
+}
+.music-card:hover::before {
+  opacity: 1;
+}
+.music-card.selecting {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 26px 70px rgba(200,169,110,0.7);
+}
+.music-card.dismissed { opacity: 0.2; transform: scale(0.97); transition: all 0.4s ease; pointer-events: none; }
+
+.card-side-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(240,236,228,0.7);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-side-label::after {
+  content: '';
+  flex: 1;
+  margin-left: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(240,236,228,0.6), rgba(240,236,228,0));
+  opacity: 0.6;
+}
+.card-embed {
+  width: 100%;
+  margin-bottom: 14px;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.8);
+}
+.card-embed iframe {
+  display: block;
+  width: 100%;
+  height: 86px;
+  border: none;
+  border-radius: 9px;
+}
+.card-title { font-family: 'Playfair Display', serif; font-size: clamp(15px,2.2vw,19px); font-weight: 700; line-height: 1.2; margin-bottom: 3px; }
+.card-artist { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 10px; }
+.card-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+.card-pill { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; border: 1px solid var(--rule); color: var(--muted); }
+.choose-btn { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; padding: 9px 0; width: 100%; text-align: center; background: rgba(240,236,228,0.06); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; cursor: pointer; transition: background 0.18s, border-color 0.18s; }
+.choose-btn:hover { background: rgba(240,236,228,0.12); border-color: rgba(240,236,228,0.25); }
+.open-netease {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  align-self: flex-start;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(240,236,228,0.22);
+  color: rgba(240,236,228,0.75);
+  background: rgba(10,10,10,0.9);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+.open-netease::after {
+  content: '↗';
+  font-size: 9px;
+}
+.open-netease:hover {
+  border-color: rgba(240,236,228,0.45);
+  color: var(--fg);
+  background: rgba(240,236,228,0.12);
+}
+.round-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(102,102,102,0.35); letter-spacing: 0.12em; text-align: center; padding: 8px 24px 0; width: 100%; max-width: 780px; flex-shrink: 0; }
+
+
+/* ══════════════════════════════
+   VIEW 3 — LOADING
+   ══════════════════════════════ */
+#view-loading { text-align: center; padding: 40px 24px; }
+.vinyl { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 36px; position: relative; animation: spin 3s linear infinite; }
+.vinyl-outer { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(240,236,228,0.06) 0deg,rgba(240,236,228,0.02) 60deg,rgba(240,236,228,0.07) 120deg,rgba(240,236,228,0.02) 180deg,rgba(240,236,228,0.06) 240deg,rgba(240,236,228,0.02) 300deg,rgba(240,236,228,0.06) 360deg); border: 1px solid rgba(240,236,228,0.08); }
+.vinyl-groove { position: absolute; border-radius: 50%; border: 1px solid rgba(240,236,228,0.04); }
+.vinyl-label { position: absolute; inset: 30%; border-radius: 50%; background: radial-gradient(circle, rgba(200,169,110,0.2), rgba(200,169,110,0.05)); border: 1px solid rgba(200,169,110,0.15); display: flex; align-items: center; justify-content: center; }
+.vinyl-center { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); opacity: 0.4; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+.loading-title { font-family: 'Playfair Display', serif; font-size: clamp(20px,5vw,30px); font-style: italic; font-weight: 400; color: rgba(240,236,228,0.8); margin-bottom: 10px; }
+.loading-sub { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 36px; }
+.loading-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 44px; }
+.loading-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: dotPulse 1.4s ease-in-out infinite; }
+.loading-dot:nth-child(2){animation-delay:0.2s} .loading-dot:nth-child(3){animation-delay:0.4s}
+@keyframes dotPulse { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1.2)} }
+.loading-recap { max-width: 380px; margin: 0 auto; }
+.recap-row { display: grid; grid-template-columns: 52px 1fr 1fr; align-items: center; gap: 12px; margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--rule); opacity: 0; animation: fadeUp 0.4s ease forwards; }
+.recap-round { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+.recap-axis { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(240,236,228,0.25); }
+.recap-choice { font-family: 'Playfair Display', serif; font-size: 13px; color: rgba(240,236,228,0.65); text-align: right; }
+.recap-choice em { font-style: normal; color: var(--accent); }
+
+
+/* ══════════════════════════════
+   VIEW 4 — RESULT PAGE
+   ══════════════════════════════ */
+#view-result {
+  justify-content: flex-start;
+  padding: 0;
+  background: var(--result-bg, #f5f0e8);
+  color: var(--result-fg, #0d0d0d);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+.result-page {
+  width: 100%; max-width: 640px;
+  margin: 0 auto;
+  padding: 52px 28px 80px;
+}
+
+/* result topbar */
+.result-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; padding-bottom: 16px; border-bottom: 1px solid var(--result-rule); opacity: 0; animation: fadeUp 0.5s ease forwards; }
+.result-brand { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; }
+.result-badge { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 10px; }
+.result-dot { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* genre graphic */
+.result-graphic { width: 100%; height: 240px; position: relative; overflow: hidden; margin-bottom: 36px; border-radius: 4px; opacity: 0; animation: fadeUp 0.6s ease 0.1s forwards; }
+.graphic-label-tl { position: absolute; top: 14px; left: 18px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; z-index: 2; }
+.graphic-genres-tr { position: absolute; top: 14px; right: 18px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; z-index: 2; }
+
+/* identity */
+.result-identity { margin-bottom: 28px; opacity: 0; animation: fadeUp 0.6s ease 0.2s forwards; }
+.persona-eyebrow { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 10px; }
+.persona-name { font-family: 'Playfair Display', serif; font-size: clamp(46px,10vw,80px); font-weight: 700; line-height: 0.9; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 12px; }
+.persona-the { font-weight: 400; font-style: italic; font-size: 0.52em; }
+.result-tagline { font-family: 'Playfair Display', serif; font-size: 15px; font-style: italic; margin-top: 16px; line-height: 1.6; padding-left: 14px; }
+
+/* description */
+.result-description { font-size: 14px; font-weight: 300; line-height: 1.85; margin-bottom: 28px; opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards; }
+
+/* tags */
+.result-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 36px; opacity: 0; animation: fadeUp 0.6s ease 0.35s forwards; }
+.result-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 11px; border-radius: 2px; transition: all 0.18s; cursor: default; }
+
+/* axes */
+.result-axes { margin-bottom: 36px; opacity: 0; animation: fadeUp 0.6s ease 0.4s forwards; }
+.result-section-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 16px; }
+.axis-row { display: grid; grid-template-columns: 72px 1fr 72px; align-items: center; gap: 12px; margin-bottom: 11px; }
+.axis-end { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+.axis-end.r { text-align: right; }
+.axis-track { height: 2px; position: relative; border-radius: 2px; }
+.axis-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; transform: scaleX(0); transform-origin: left; animation: barGrow 0.9s cubic-bezier(0.16,1,0.3,1) forwards; }
+.axis-pip { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid; }
+@keyframes barGrow { to { transform: scaleX(1); } }
+
+/* artists */
+.result-artists { margin-bottom: 40px; opacity: 0; animation: fadeUp 0.6s ease 0.45s forwards; }
+.artists-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; border-radius: 3px; overflow: hidden; }
+.artist-card { padding: 18px 14px; transition: filter 0.18s; cursor: default; }
+.artist-card:hover { filter: brightness(1.06); }
+.artist-num { font-family: 'DM Mono', monospace; font-size: 9px; margin-bottom: 7px; }
+.artist-name { font-family: 'Playfair Display', serif; font-size: 14px; line-height: 1.3; }
+.artist-genre-label { font-family: 'DM Mono', monospace; font-size: 9px; margin-top: 3px; letter-spacing: 0.06em; }
+
+/* footer */
+.result-footer { display: flex; align-items: center; gap: 10px; padding-top: 32px; opacity: 0; animation: fadeUp 0.6s ease 0.55s forwards; }
+.btn-restart { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; padding: 11px 22px; border: none; cursor: pointer; border-radius: 2px; transition: opacity 0.18s; }
+.btn-restart:hover { opacity: 0.7; }
+.btn-share { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; padding: 11px 22px; background: transparent; cursor: pointer; border-radius: 2px; transition: all 0.18s; }
+.share-hint { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; margin-left: auto; }
+
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .cards-area { grid-template-columns: 1fr; padding: 12px 16px 16px; }
+  .vs-badge { text-align: center; padding-top: 0; }
+  .artists-grid { grid-template-columns: 1fr; }
+  .result-footer { flex-wrap: wrap; }
+  .share-hint { margin-left: 0; width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ VIEW 1: WELCOME ══ -->
+<div class="view active" id="view-welcome">
+  <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+  <div class="welcome-inner">
+    <div class="welcome-logo"><div class="logo-mark">◎</div>Sound Mirror</div>
+    <h1 class="welcome-title">Find Your<br><em>Sound</em></h1>
+    <p class="welcome-sub">八首歌，照见你的音乐灵魂。<br>没有标准答案，只有你自己。</p>
+    <div class="welcome-meta">
+      <div class="meta-item"><div class="meta-num">8</div><div class="meta-label">轮对比</div></div>
+      <div class="meta-divider"></div>
+      <div class="meta-item"><div class="meta-num">3'</div><div class="meta-label">所需时间</div></div>
+      <div class="meta-divider"></div>
+      <div class="meta-item"><div class="meta-num">AI</div><div class="meta-label">驱动分析</div></div>
+    </div>
+    <button class="btn-start" onclick="startTest()">开始测试</button>
+    <p class="welcome-hint">跟随直觉，不要想太多</p>
+  </div>
+</div>
+
+
+<!-- ══ VIEW 2: A/B ROUND ══ -->
+<div class="view" id="view-round">
+  <div class="round-header">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <span class="progress-label" id="progress-label">1 / 8</span>
+    </div>
+    <div class="round-top-row">
+      <p class="round-question" id="round-question"></p>
+      <button class="round-back" id="round-back" type="button" onclick="goBack()">← 上一题</button>
+    </div>
+  </div>
+  <div class="cards-area">
+    <div class="music-card" id="card-a">
+      <div class="music-card-inner">
+        <div class="card-side-label">A</div>
+        <div class="card-embed" id="embed-a"></div>
+        <div class="card-title" id="title-a"></div>
+        <div class="card-artist" id="artist-a"></div>
+        <div class="card-pills" id="pills-a"></div>
+        <a class="open-netease" id="open-a" href="#" target="_blank" rel="noopener">网易云中打开</a>
+        <button class="choose-btn" onclick="event.stopPropagation();choose('a')">选这个 →</button>
+      </div>
+    </div>
+    <div class="vs-badge">vs</div>
+    <div class="music-card" id="card-b">
+      <div class="music-card-inner">
+        <div class="card-side-label">B</div>
+        <div class="card-embed" id="embed-b"></div>
+        <div class="card-title" id="title-b"></div>
+        <div class="card-artist" id="artist-b"></div>
+        <div class="card-pills" id="pills-b"></div>
+        <a class="open-netease" id="open-b" href="#" target="_blank" rel="noopener">网易云中打开</a>
+        <button class="choose-btn" onclick="event.stopPropagation();choose('b')">选这个 →</button>
+      </div>
+    </div>
+  </div>
+  <p class="round-hint">先试听，再选择 · 点击按钮选择</p>
+</div>
+
+
+<!-- ══ VIEW 3: LOADING ══ -->
+<div class="view" id="view-loading">
+  <div class="vinyl">
+    <div class="vinyl-outer"></div>
+    <div class="vinyl-groove" style="inset:10%"></div>
+    <div class="vinyl-groove" style="inset:18%"></div>
+    <div class="vinyl-groove" style="inset:24%"></div>
+    <div class="vinyl-label"><div class="vinyl-center"></div></div>
+  </div>
+  <div class="loading-title">AI 正在解析<br>你的音乐灵魂</div>
+  <div class="loading-sub">分析你的八次选择中</div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+  </div>
+  <div class="loading-recap" id="loading-recap"></div>
+</div>
+
+
+<!-- ══ VIEW 4: RESULT ══ -->
+<div class="view" id="view-result">
+  <div class="result-page">
+    <div class="result-topbar">
+      <span class="result-brand" id="result-brand">◎ Sound Mirror</span>
+      <div class="result-badge" id="result-badge"><div class="result-dot" id="result-dot"></div><span>AI Generated · Just Now</span></div>
+    </div>
+    <div class="result-graphic" id="result-graphic">
+      <div class="graphic-label-tl" id="graphic-label">Sonic Profile</div>
+      <div class="graphic-genres-tr" id="graphic-genres"></div>
+      <canvas id="result-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    </div>
+    <div class="result-identity">
+      <div class="persona-eyebrow" id="persona-eyebrow">Your Music Persona</div>
+      <div class="persona-name"><span class="persona-the" id="persona-the">The</span><span id="persona-name-main"></span></div>
+      <p class="result-tagline" id="result-tagline"></p>
+    </div>
+    <p class="result-description" id="result-description"></p>
+    <div class="result-tags" id="result-tags"></div>
+    <div class="result-axes">
+      <div class="result-section-label" id="axes-label">Taste Profile</div>
+      <div class="axis-row">
+        <span class="axis-end">Quiet</span>
+        <div class="axis-track" id="axis-track-energy"><div class="axis-fill" id="axis-fill-energy"><div class="axis-pip" id="axis-pip-energy" style="left:100%"></div></div></div>
+        <span class="axis-end r">Driving</span>
+      </div>
+      <div class="axis-row">
+        <span class="axis-end">Bright</span>
+        <div class="axis-track" id="axis-track-mood"><div class="axis-fill" id="axis-fill-mood"><div class="axis-pip" id="axis-pip-mood" style="left:100%"></div></div></div>
+        <span class="axis-end r">Dark</span>
+      </div>
+      <div class="axis-row">
+        <span class="axis-end">Fluid</span>
+        <div class="axis-track" id="axis-track-structure"><div class="axis-fill" id="axis-fill-structure"><div class="axis-pip" id="axis-pip-structure" style="left:100%"></div></div></div>
+        <span class="axis-end r">Precise</span>
+      </div>
+    </div>
+    <div class="result-artists">
+      <div class="result-section-label">You Might Love</div>
+      <div class="artists-grid" id="artists-grid"></div>
+    </div>
+    <div class="result-footer" id="result-footer">
+      <button class="btn-restart" id="btn-restart" onclick="startTest()">再测一次</button>
+      <button class="btn-share" id="btn-share" onclick="window.print()">截图保存</button>
+      <span class="share-hint" id="share-hint">分享给朋友 →</span>
+    </div>
+  </div>
+</div>
+
+
+<style>
+/* Ghost fog animation (used in result graphic) */
+@keyframes fogExpand {
+  0%  { width:80px;height:80px;opacity:0.6; }
+  100%{ width:560px;height:560px;opacity:0; }
+}
+@keyframes orbBreath {
+  0%,100%{ transform:translate(-50%,-50%) scale(1); }
+  50%    { transform:translate(-50%,-50%) scale(1.15); }
+}
+@keyframes waveAnim {
+  from{ transform:scaleY(0.4); opacity:0.2; }
+  to  { transform:scaleY(1.4); opacity:0.7; }
+}
+</style>
+
+<script>
+// ════════════════════════════════════════
+// ROUND DATA — all IDs verified ✅
+// ════════════════════════════════════════
+const ROUNDS = [
+  {
+    question: "你现在想被音乐轻轻抱住，还是被它狠狠推着走？",
+    axis: "能量感",
+    a: { title:"安和桥", artist:"宋冬野", id:"27646205", pills:["民谣","低能量","温柔"], v:0 },
+    b: { title:"HUMBLE.", artist:"Kendrick Lamar", id:"469104548", pills:["Hip Hop","律动","冲击"], v:1 }
+  },
+  {
+    question: "音乐对你是阳光，还是一面照出内心的镜子？",
+    axis: "情绪色调",
+    a: { title:"奇妙能力歌", artist:"陈粒", id:"2749430418", pills:["独立民谣","空灵","明亮"], v:0 },
+    b: { title:"杀死那个石家庄人", artist:"万能青年旅店", id:"386844", pills:["后朋克","黑暗","有重量"], v:1 }
+  },
+  {
+    question: "你更欣赏当下的即兴，还是被精密设计过的东西？",
+    axis: "结构感",
+    a: { title:"Waltz for Debby", artist:"Bill Evans", id:"1938100666", pills:["Jazz","即兴","流动"], v:0 },
+    b: { title:"Everything In Its Right Place", artist:"Radiohead", id:"22559034", pills:["Art Rock","精密","层次"], v:1 }
+  },
+  {
+    question: "此刻你想要原野里的篝火，还是城市里的霓虹？",
+    axis: "质感",
+    a: { title:"Holocene", artist:"Bon Iver", id:"16649909", pills:["Folk","有机","自然"], v:0 },
+    b: { title:"Happen Ending", artist:"Epik High ft. IU", id:"29848092", pills:["K-Pop","都市","情绪"], v:1 }
+  },
+  {
+    question: "你在声音里寻找一对一的悄悄话，还是被宇宙淹没的感觉？",
+    axis: "亲密尺度",
+    a: { title:"夜信", artist:"IU", id:"1996898135", pills:["K-Pop","私密","内省"], v:0 },
+    b: { title:"Hoppípolla", artist:"Sigur Rós", id:"4278433", pills:["后摇","史诗","辽阔"], v:1 }
+  },
+  {
+    question: "你需要音乐告诉你一个故事，还是什么都不说就打动你？",
+    axis: "叙事性",
+    a: { title:"春风十里", artist:"鹿先森乐队", id:"542697107", pills:["华语独立","有叙事","温暖"], v:0 },
+    b: { title:"Says", artist:"Nils Frahm", id:"28220590", pills:["Ambient Piano","无词","沉浸"], v:1 }
+  },
+  {
+    question: "你要音乐陪你正面冲撞，还是陪你慢慢平静？",
+    axis: "摩擦感",
+    a: { title:"没有理想的人不伤心", artist:"新裤子", id:"28009051", pills:["后朋克","Disco","释放"], v:0 },
+    b: { title:"Near Light", artist:"Ólafur Arnalds", id:"1397741240", pills:["新古典","平静","辽阔"], v:1 }
+  },
+  {
+    question: "被时间沉淀过的东西打动你，还是此刻正在发生的声音？",
+    axis: "时代感",
+    a: { title:"So What", artist:"Miles Davis", id:"1301417688", pills:["经典爵士","人文","历史感"], v:0 },
+    b: { title:"instagram", artist:"Dean", id:"2681975399", pills:["韩国R&B","当代","都市"], v:1 }
+  }
+];
+
+// ════════════════════════════════════════
+// PERSONA DEFINITIONS
+// key = binary string of [energy, mood, structure] axis values
+// ════════════════════════════════════════
+const PERSONAS = {
+  "000": {
+    name: "Dreamer", the: "The",
+    tagline: "你总在一首歌里找到另一个版本的自己，那个更温柔、更慢的自己。",
+    description: "你不要求音乐给你答案，只要求它陪着你。那些刻意留白的旋律、窗外的雨声，对你来说不是瑕疵，是氛围的一部分。你的播放列表是你内心世界的地图。",
+    tags: ["Nostalgic","Intimate","Hazy"],
+    artists: [["Novo Amor","Indie Folk"],["Idealism","Lo-fi"],["Phoebe Bridgers","Bedroom Pop"]],
+    axes: { energy:18, mood:35, structure:28 },
+    bg: "#f7f3eb", fg: "#2a2520", muted: "#8a7e74", accent: "#c8a96e",
+    rule: "rgba(42,37,32,0.1)", cardBg: "#f7f3eb", artistBg: "rgba(42,37,32,0.06)",
+    btnPrimary: ["#2a2520","#f7f3eb"], btnGhost: ["transparent","#2a2520"],
+    dotColor: "#c8a96e", tagBorder: "#2a2520", tagColor: "#2a2520",
+    graphicBg: "#1a1208", graphicLabel: "rgba(255,220,150,0.4)", graphicGenres: "rgba(255,220,150,0.25)",
+    graphicGenreText: "Lo-fi · Indie Folk · Bedroom Pop",
+    drawFn: "drawDreamer"
+  },
+  "001": {
+    name: "Architect", the: "The",
+    tagline: "你在音符之间的空隙里，听见了整个宇宙的结构。",
+    description: "你欣赏那种被精心设计过的东西——每一个音符都在它该在的位置，每一次转调都有其必然性。Bach和Radiohead在你听来，其实是同一种精神。",
+    tags: ["Structural","Cerebral","Precise"],
+    artists: [["Steve Reich","Minimalism"],["Tigran Hamasyan","Jazz / Math"],["Battles","Math Rock"]],
+    axes: { energy:25, mood:40, structure:90 },
+    bg: "#f0f0ee", fg: "#111111", muted: "#888888", accent: "#4466cc",
+    rule: "rgba(17,17,17,0.1)", cardBg: "#f0f0ee", artistBg: "rgba(17,17,17,0.06)",
+    btnPrimary: ["#111111","#f0f0ee"], btnGhost: ["transparent","#111111"],
+    dotColor: "#4466cc", tagBorder: "#111111", tagColor: "#111111",
+    graphicBg: "#0c0c14", graphicLabel: "rgba(100,140,255,0.4)", graphicGenres: "rgba(100,140,255,0.25)",
+    graphicGenreText: "Classical · Math Rock · Minimalism",
+    drawFn: "drawArchitect"
+  },
+  "010": {
+    name: "Ghost", the: "The",
+    tagline: "你在声音里藏着一整个宇宙，但很少有人有幸进入。",
+    description: "你对音乐的感受方式是向内的——不是在「听」，而是在「进入」。那些留白、那些微小的失真，对你来说比一千个清晰的和弦更有说服力。",
+    tags: ["Melancholic","Atmospheric","Introspective"],
+    artists: [["Grouper","Drone Folk"],["Arca","Experimental"],["Nils Frahm","Ambient Piano"]],
+    axes: { energy:22, mood:78, structure:45 },
+    bg: "#f5f0e8", fg: "#0d0d0d", muted: "#6b6560", accent: "#c8a96e",
+    rule: "rgba(13,13,13,0.1)", cardBg: "#f5f0e8", artistBg: "rgba(13,13,13,0.06)",
+    btnPrimary: ["#0d0d0d","#f5f0e8"], btnGhost: ["transparent","#0d0d0d"],
+    dotColor: "#a070ff", tagBorder: "#0d0d0d", tagColor: "#0d0d0d",
+    graphicBg: "#0a0a0f", graphicLabel: "rgba(200,160,255,0.4)", graphicGenres: "rgba(255,255,255,0.18)",
+    graphicGenreText: "Shoegaze · Dark Ambient · Drone",
+    drawFn: "drawGhost"
+  },
+  "011": {
+    name: "Philosopher", the: "The",
+    tagline: "一首歌能承载一个时代，而你总在试图理解那个时代。",
+    description: "你听音乐的方式是「体验一段旅程」。你欣赏那种从沉默生长出来、最终爆发成震撼的结构。每一首Post-Rock对你来说都是一篇没有文字的论文。",
+    tags: ["Cinematic","Layered","Expansive"],
+    artists: [["Godspeed You!","Post-Rock"],["Radiohead","Art Rock"],["Sigur Rós","Cinematic"]],
+    axes: { energy:38, mood:72, structure:82 },
+    bg: "#eef2f0", fg: "#0f1a18", muted: "#6a8a80", accent: "#2a9d8f",
+    rule: "rgba(15,26,24,0.1)", cardBg: "#eef2f0", artistBg: "rgba(15,26,24,0.06)",
+    btnPrimary: ["#0f1a18","#eef2f0"], btnGhost: ["transparent","#0f1a18"],
+    dotColor: "#2a9d8f", tagBorder: "#0f1a18", tagColor: "#0f1a18",
+    graphicBg: "#080f0e", graphicLabel: "rgba(80,200,180,0.4)", graphicGenres: "rgba(80,200,180,0.22)",
+    graphicGenreText: "Post-Rock · Art Rock · Cinematic",
+    drawFn: "drawPhilosopher"
+  },
+  "100": {
+    name: "Healer", the: "The",
+    tagline: "音乐对你来说从不是背景，它是你让自己重新感受到身体的方式。",
+    description: "你需要音乐来流动——在你的胸腔里，在你的脚底下。你欣赏那种有体温的声音：一点沙，一点甜，一点说不清楚的忧郁压在groove里。",
+    tags: ["Soulful","Warm","Groove"],
+    artists: [["Frank Ocean","Neo-Soul"],["D'Angelo","R&B / Funk"],["Erykah Badu","Soul"]],
+    axes: { energy:65, mood:42, structure:30 },
+    bg: "#fdf6ee", fg: "#241a0e", muted: "#a07840", accent: "#e07820",
+    rule: "rgba(36,26,14,0.1)", cardBg: "#fdf6ee", artistBg: "rgba(36,26,14,0.06)",
+    btnPrimary: ["#241a0e","#fdf6ee"], btnGhost: ["transparent","#241a0e"],
+    dotColor: "#e07820", tagBorder: "#241a0e", tagColor: "#241a0e",
+    graphicBg: "#120a02", graphicLabel: "rgba(255,160,60,0.4)", graphicGenres: "rgba(255,160,60,0.22)",
+    graphicGenreText: "Neo-Soul · R&B · Funk",
+    drawFn: "drawHealer"
+  },
+  "101": {
+    name: "Builder", the: "The",
+    tagline: "你知道一首好歌是被设计出来的，而你欣赏那个设计。",
+    description: "你不怕「流行」这个词，因为你知道真正打动人的东西从来不廉价。你欣赏那种被精心打磨的制作感：完美的drop、刚好的hook、每一次情绪堆叠都有意义。",
+    tags: ["Polished","Energetic","Crafted"],
+    artists: [["Caroline Polachek","Art Pop"],["Charli XCX","Hyperpop"],["MAMAMOO","K-Pop"]],
+    axes: { energy:80, mood:25, structure:88 },
+    bg: "#f8f8fc", fg: "#0a0a1a", muted: "#8888aa", accent: "#ff2d6e",
+    rule: "rgba(10,10,26,0.1)", cardBg: "#f8f8fc", artistBg: "rgba(10,10,26,0.06)",
+    btnPrimary: ["#0a0a1a","#f8f8fc"], btnGhost: ["transparent","#0a0a1a"],
+    dotColor: "#ff2d6e", tagBorder: "#0a0a1a", tagColor: "#0a0a1a",
+    graphicBg: "#06060f", graphicLabel: "rgba(255,60,120,0.5)", graphicGenres: "rgba(255,60,120,0.28)",
+    graphicGenreText: "Electro-Pop · Synth · K-Pop",
+    drawFn: "drawBuilder"
+  },
+  "110": {
+    name: "Rebel", the: "The",
+    tagline: "你要的不是音乐带你逃离，你要它陪你正面冲撞。",
+    description: "你听音乐的方式带着某种诚实。你不接受那些刻意打磨得失去棱角的东西。你需要音乐有立场、有摩擦、有时候让人不舒服。Kendrick和草东对你来说说的是同一件事。",
+    tags: ["Raw","Confrontational","Vital"],
+    artists: [["Kendrick Lamar","Hip Hop"],["草东没有派对","Post-Punk"],["Idles","Post-Punk"]],
+    axes: { energy:88, mood:70, structure:35 },
+    bg: "#0d0d0d", fg: "#f0f0f0", muted: "#888888", accent: "#d4ff00",
+    rule: "rgba(240,240,240,0.08)", cardBg: "#151515", artistBg: "rgba(240,240,240,0.04)",
+    btnPrimary: ["#d4ff00","#0d0d0d"], btnGhost: ["transparent","rgba(240,240,240,0.4)"],
+    dotColor: "#d4ff00", tagBorder: "#f0f0f0", tagColor: "#f0f0f0",
+    graphicBg: "#000000", graphicLabel: "rgba(212,255,0,0.4)", graphicGenres: "rgba(212,255,0,0.22)",
+    graphicGenreText: "Hip Hop · Punk · Garage Rock",
+    drawFn: "drawRebel"
+  },
+  "111": {
+    name: "Architect of Chaos", the: "The",
+    tagline: "你不怕噪音，因为你知道最深的秩序往往藏在混乱里。",
+    description: "你对音乐有极高的密度要求。那些表面上不可消化的、激烈的声音，对你来说反而是最诚实的。你能在金属的撕裂声和工业噪音里找到一种解脱——不是逃离，是直面。",
+    tags: ["Intense","Dense","Uncompromising"],
+    artists: [["Nine Inch Nails","Industrial"],["Swans","Noise Rock"],["Meshuggah","Metal"]],
+    axes: { energy:95, mood:92, structure:85 },
+    bg: "#100808", fg: "#e8dada", muted: "#886060", accent: "#cc2200",
+    rule: "rgba(232,218,218,0.08)", cardBg: "#180c0c", artistBg: "rgba(232,218,218,0.04)",
+    btnPrimary: ["#cc2200","#e8dada"], btnGhost: ["transparent","rgba(232,218,218,0.25)"],
+    dotColor: "#cc2200", tagBorder: "#e8dada", tagColor: "#e8dada",
+    graphicBg: "#040202", graphicLabel: "rgba(220,60,40,0.4)", graphicGenres: "rgba(220,60,40,0.22)",
+    graphicGenreText: "Industrial · Metal · Noise",
+    drawFn: "drawChaos"
+  }
+};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let currentRound = 0;
+let choices = [];
+let animating = false;
+let currentRaf = null;
+
+// ════════════════════════════════════════
+// VIEW SYSTEM
+// ════════════════════════════════════════
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ════════════════════════════════════════
+// START / LOAD ROUND
+// ════════════════════════════════════════
+function startTest() {
+  currentRound = 0; choices = [];
+  if (currentRaf) { cancelAnimationFrame(currentRaf); currentRaf = null; }
+  loadRound(0);
+  showView('view-round');
+}
+
+function goBack() {
+  if (animating) return;
+  if (currentRound === 0) {
+    choices = [];
+    showView('view-welcome');
+    return;
+  }
+  if (choices.length > 0) {
+    choices.pop();
+  }
+  currentRound = Math.max(0, currentRound - 1);
+  loadRound(currentRound);
+}
+
+function loadRound(idx) {
+  const r = ROUNDS[idx];
+  const pct = (idx / ROUNDS.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${idx+1} / ${ROUNDS.length}`;
+  document.getElementById('round-question').textContent = r.question;
+  const backBtn = document.getElementById('round-back');
+  if (backBtn) backBtn.style.visibility = idx === 0 ? 'hidden' : 'visible';
+
+  fillCard('a', r.a);
+  fillCard('b', r.b);
+
+  ['card-a','card-b'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('selecting','dismissed');
+    el.style.cssText = '';
+  });
+}
+
+function fillCard(side, data) {
+  document.getElementById('embed-' + side).innerHTML =
+    `<iframe src="https://music.163.com/outchain/player?type=2&id=${data.id}&auto=0&height=66"
+      frameborder="no" width="100%" height="86" style="border-radius:4px"></iframe>`;
+  document.getElementById('title-' + side).textContent = data.title;
+  document.getElementById('artist-' + side).textContent = data.artist;
+  document.getElementById('pills-' + side).innerHTML =
+    data.pills.map(p => `<span class="card-pill">${p}</span>`).join('');
+  const open = document.getElementById('open-' + side);
+  if (open) {
+    open.href = `https://music.163.com/song?id=${data.id}`;
+  }
+}
+
+// ════════════════════════════════════════
+// CHOOSE
+// ════════════════════════════════════════
+function choose(side) {
+  if (animating) return;
+  animating = true;
+
+  const chosen = 'card-' + side;
+  const other  = side === 'a' ? 'card-b' : 'card-a';
+  const data   = ROUNDS[currentRound][side];
+
+  document.getElementById(chosen).classList.add('selecting');
+  document.getElementById(other).classList.add('dismissed');
+
+  choices.push({ round: currentRound+1, axis: ROUNDS[currentRound].axis, title: data.title, artist: data.artist, v: data.v });
+
+  setTimeout(() => {
+    animating = false;
+    currentRound++;
+    if (currentRound < ROUNDS.length) {
+      loadRound(currentRound);
+    } else {
+      goToLoading();
+    }
+  }, 650);
+}
+
+// ════════════════════════════════════════
+// LOADING + 调用后端 /api/analyze
+// ════════════════════════════════════════
+function goToLoading() {
+  showView('view-loading');
+  const container = document.getElementById('loading-recap');
+  container.innerHTML = '';
+  choices.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'recap-row';
+    row.style.animationDelay = (i * 0.12 + 0.05) + 's';
+    row.innerHTML = `<span class="recap-round">R${c.round}</span><span class="recap-axis">${c.axis}</span><span class="recap-choice"><em>${c.title}</em></span>`;
+    container.appendChild(row);
+  });
+
+  // 调用你在 Vercel 上的后端接口 /api/analyze
+  fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ choices })
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('API error ' + res.status);
+      return res.json();
+    })
+    .then(result => {
+      // result 约定格式：{ type, the, tagline, description, tags, artists, axes, _key }
+      showResult(result);
+    })
+    .catch(err => {
+      console.error('调用 /api/analyze 失败，回退到本地人格逻辑', err);
+      const persona = computePersona();
+      showResult(persona);
+    });
+}
+
+// ════════════════════════════════════════
+// COMPUTE PERSONA (local fallback)
+// 用前3个轴的选择生成二进制key
+// ════════════════════════════════════════
+function computePersona() {
+  // axes map: round 1=energy, round 2=mood, round 3=structure
+  const axisRounds = [0, 1, 2]; // indices into choices
+  const key = axisRounds.map(i => choices[i] ? choices[i].v : 0).join('');
+  const p = PERSONAS[key] || PERSONAS["010"];
+  return {
+    type: p.name, the: p.the,
+    tagline: p.tagline,
+    description: p.description,
+    tags: p.tags,
+    artists: p.artists,
+    axes: p.axes,
+    _key: key
+  };
+}
+
+// ════════════════════════════════════════
+// SHOW RESULT
+// ════════════════════════════════════════
+function showResult(result) {
+  const key = result._key || "010";
+  const p = PERSONAS[key] || PERSONAS["010"];
+
+  // Apply theme to result view
+  const rv = document.getElementById('view-result');
+  rv.style.setProperty('--result-bg', p.bg);
+  rv.style.setProperty('--result-fg', p.fg);
+  rv.style.setProperty('--result-rule', p.rule);
+  rv.style.background = p.bg;
+  rv.style.color = p.fg;
+
+  // Topbar
+  document.getElementById('result-brand').style.color = p.muted;
+  document.getElementById('result-badge').style.color = p.muted;
+  document.getElementById('result-dot').style.background = p.dotColor;
+
+  // Graphic
+  const graphic = document.getElementById('result-graphic');
+  graphic.style.background = p.graphicBg;
+  document.getElementById('graphic-label').style.color = p.graphicLabel;
+  document.getElementById('graphic-genres').style.color = p.graphicGenres;
+  document.getElementById('graphic-genres').textContent = p.graphicGenreText;
+
+  // Identity
+  document.getElementById('persona-eyebrow').style.color = p.accent;
+  document.getElementById('persona-the').style.color = p.muted;
+  document.getElementById('persona-name-main').textContent = result.type;
+  const tagline = document.getElementById('result-tagline');
+  tagline.textContent = result.tagline;
+  tagline.style.color = p.muted;
+  tagline.style.borderLeft = `2px solid ${p.accent}`;
+
+  // Description
+  document.getElementById('result-description').textContent = result.description;
+
+  // Tags
+  const tagsEl = document.getElementById('result-tags');
+  tagsEl.innerHTML = result.tags.map(t =>
+    `<span class="result-tag" style="border:1px solid ${p.tagBorder};color:${p.tagColor}">${t}</span>`
+  ).join('');
+
+  // Axes
+  ['energy','mood','structure'].forEach((ax, i) => {
+    const val = result.axes[ax] || 50;
+    const delay = 0.5 + i * 0.15;
+    document.getElementById(`axis-track-${ax}`).style.background = p.rule;
+    const fill = document.getElementById(`axis-fill-${ax}`);
+    fill.style.width = val + '%';
+    fill.style.background = p.fg;
+    fill.style.animationDelay = delay + 's';
+    const pip = document.getElementById(`axis-pip-${ax}`);
+    pip.style.background = p.bg;
+    pip.style.borderColor = p.accent;
+    pip.style.animationDelay = delay + 's';
+  });
+  document.getElementById('axes-label').style.color = p.muted;
+  document.querySelectorAll('.axis-end').forEach(el => el.style.color = p.muted);
+
+  // Artists
+  const artistsGrid = document.getElementById('artists-grid');
+  artistsGrid.style.background = p.rule;
+  artistsGrid.innerHTML = result.artists.map((a, i) => `
+    <div class="artist-card" style="background:${p.cardBg}">
+      <div class="artist-num" style="color:${p.accent}">0${i+1}</div>
+      <div class="artist-name">${Array.isArray(a) ? a[0] : a}</div>
+      <div class="artist-genre-label" style="color:${p.muted}">${Array.isArray(a) ? a[1] : ''}</div>
+    </div>
+  `).join('');
+
+  // Footer
+  const btnR = document.getElementById('btn-restart');
+  btnR.style.background = p.btnPrimary[0];
+  btnR.style.color = p.btnPrimary[1];
+  const btnS = document.getElementById('btn-share');
+  btnS.style.background = p.btnGhost[0];
+  btnS.style.color = p.btnGhost[1];
+  btnS.style.border = `1px solid ${p.tagBorder}`;
+  document.getElementById('result-footer').style.borderTop = `1px solid ${p.rule}`;
+  document.getElementById('share-hint').style.color = p.muted;
+
+  // Draw canvas graphic
+  if (currentRaf) { cancelAnimationFrame(currentRaf); currentRaf = null; }
+  const canvas = document.getElementById('result-canvas');
+  setTimeout(() => { window[p.drawFn](canvas, p); }, 50);
+
+  showView('view-result');
+}
+
+// ════════════════════════════════════════
+// CANVAS DRAW FUNCTIONS
+// ════════════════════════════════════════
+function setupCanvas(canvas) {
+  const w = canvas.parentElement.offsetWidth || 600;
+  const h = canvas.parentElement.offsetHeight || 240;
+  canvas.width = w; canvas.height = h;
+  return { ctx: canvas.getContext('2d'), w, h };
+}
+
+function drawDreamer(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const particles = Array.from({length:55}, () => ({
+    x:Math.random()*w, y:Math.random()*h,
+    r:Math.random()*2.2+0.5,
+    vx:(Math.random()-0.5)*0.25, vy:-(Math.random()*0.35+0.1),
+    a:Math.random()*0.5+0.2,
+    hue:30+Math.random()*30, light:65+Math.random()*20
+  }));
+  const grad = ctx.createRadialGradient(w*.5,h*.6,10,w*.5,h*.6,w*.6);
+  grad.addColorStop(0,'rgba(180,110,40,0.15)'); grad.addColorStop(1,'rgba(0,0,0,0)');
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+    ctx.beginPath();
+    for(let x=0;x<=w;x++) {
+      const y=h-18-Math.sin(x*.015+Date.now()*.0007)*10-Math.sin(x*.028+Date.now()*.0005)*5;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.lineTo(w,h); ctx.closePath();
+    ctx.fillStyle='rgba(200,140,60,0.07)'; ctx.fill();
+    particles.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${p.hue},70%,${p.light}%,${p.a})`; ctx.fill();
+      p.x+=p.vx; p.y+=p.vy; p.a+=(Math.random()-.5)*.02;
+      p.a=Math.max(.05,Math.min(.65,p.a));
+      if(p.y<-5){p.y=h+5;p.x=Math.random()*w;}
+    });
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawArchitect(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const cols=32, bw=w/cols;
+  const bars=Array.from({length:cols},(_,i)=>({cur:0,phase:i*.15}));
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle='rgba(100,140,255,0.07)'; ctx.lineWidth=.5;
+    for(let x=0;x<w;x+=bw){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    for(let y=0;y<h;y+=h/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+    const t=Date.now()*.001;
+    bars.forEach((bar,i) => {
+      const target=(Math.sin(t*.8+bar.phase)*.3+.5)*h*.65+h*.05;
+      bar.cur+=(target-bar.cur)*.05;
+      const x=i*bw+bw*.15, bw2=bw*.7;
+      const a=.12+Math.sin(t+bar.phase)*.06;
+      ctx.fillStyle=`rgba(80,120,255,${a})`; ctx.fillRect(x,h-bar.cur,bw2,bar.cur);
+      ctx.fillStyle=`rgba(140,180,255,${a*2})`; ctx.fillRect(x,h-bar.cur,bw2,1.5);
+    });
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawGhost(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const parent = canvas.parentElement;
+  parent.querySelectorAll('.fog-ring,.ghost-orb,.ghost-wave').forEach(e=>e.remove());
+  const orb=document.createElement('div');
+  orb.className='ghost-orb';
+  orb.style.cssText=`position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(200,160,255,0.9),rgba(80,40,140,0.6) 60%,transparent);box-shadow:0 0 40px rgba(160,100,255,0.3),0 0 80px rgba(100,60,200,0.15);animation:orbBreath 6s ease-in-out infinite`;
+  parent.appendChild(orb);
+  for(let i=0;i<4;i++){
+    const ring=document.createElement('div');
+    ring.className='fog-ring';
+    ring.style.cssText=`position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100px;height:100px;border-radius:50%;border:1px solid rgba(180,140,255,0.2);animation:fogExpand 8s linear infinite ${-i*2}s`;
+    parent.appendChild(ring);
+  }
+  const waveDiv=document.createElement('div');
+  waveDiv.className='ghost-wave';
+  waveDiv.style.cssText='position:absolute;bottom:0;left:0;right:0;height:60px;display:flex;align-items:flex-end;justify-content:center;gap:2px;padding:0 20px 8px';
+  const hts=[4,8,14,6,18,10,24,12,30,16,22,10,28,8,20,6,14,26,8,4];
+  const drs=[3.1,2.7,3.4,2.9,3.8,2.6,4.1,3.2,3.6,2.8,4.3,3.0,3.7,2.5,4.0,3.3,2.9,3.5,2.7,3.1];
+  const dls=[0,.1,.2,.3,.05,.4,.15,.5,.25,.6,.1,.35,.45,.2,.55,.1,.4,.3,.15,.5];
+  hts.forEach((ht,i)=>{
+    const b=document.createElement('div');
+    b.style.cssText=`width:2px;border-radius:2px 2px 0 0;background:rgba(200,160,255,0.35);height:${ht}px;animation:waveAnim ${drs[i]}s ease-in-out ${dls[i]}s infinite alternate`;
+    waveDiv.appendChild(b);
+  });
+  parent.appendChild(waveDiv);
+}
+
+function drawPhilosopher(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const layers=[
+    {color:'rgba(30,160,140,0.12)',speed:.0003,amp:35,base:.55},
+    {color:'rgba(30,160,140,0.18)',speed:.0005,amp:25,base:.65},
+    {color:'rgba(40,180,160,0.22)',speed:.0008,amp:18,base:.72},
+    {color:'rgba(60,200,180,0.14)',speed:.0012,amp:12,base:.78},
+  ];
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    const t=Date.now();
+    layers.forEach(l=>{
+      ctx.beginPath();
+      for(let x=0;x<=w;x+=2){
+        const y=h*l.base-Math.sin(x*.008+t*l.speed)*l.amp-Math.sin(x*.02+t*l.speed*1.7)*l.amp*.4;
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.lineTo(w,h);ctx.closePath();ctx.fillStyle=l.color;ctx.fill();
+    });
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawHealer(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const ribbons=[
+    {c:[255,120,40],a:.12,ph:0,fr:.012},
+    {c:[255,160,60],a:.10,ph:1.2,fr:.009},
+    {c:[200,80,20], a:.08,ph:2.5,fr:.015},
+    {c:[255,200,80],a:.07,ph:.7,fr:.007},
+  ];
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    const t=Date.now()*.0008;
+    ribbons.forEach(r=>{
+      const [rr,g,b]=r.c;
+      ctx.beginPath();
+      for(let x=0;x<=w;x+=2){
+        const y=h*.5+Math.sin(x*r.fr+t+r.ph)*h*.22+Math.sin(x*r.fr*2.1+t*1.3+r.ph)*h*.08;
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=`rgba(${rr},${g},${b},${r.a})`;ctx.lineWidth=28;ctx.stroke();
+    });
+    const g=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.4);
+    g.addColorStop(0,'rgba(255,140,40,0.09)');g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawBuilder(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const cols=24,bw=w/cols;
+  const bars=Array.from({length:cols},(_,i)=>({h:Math.random()*h*.6+20,phase:i*.4}));
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    const t=Date.now()*.001;
+    for(let y=0;y<h;y+=3){ctx.fillStyle='rgba(255,45,110,0.022)';ctx.fillRect(0,y,w,1);}
+    for(let x=0;x<w;x+=bw) for(let y=0;y<h;y+=bw){ctx.beginPath();ctx.arc(x,y,.7,0,Math.PI*2);ctx.fillStyle='rgba(255,45,110,0.1)';ctx.fill();}
+    bars.forEach((bar,i)=>{
+      const target=(Math.abs(Math.sin(t*1.2+bar.phase)))*h*.7+15;
+      bar.h+=(target-bar.h)*.08;
+      const x=i*bw+bw*.2, a=.45+Math.sin(t*2+bar.phase)*.18;
+      const grd=ctx.createLinearGradient(0,h-bar.h,0,h);
+      grd.addColorStop(0,`rgba(255,45,110,${a*.7})`);grd.addColorStop(1,'rgba(255,45,110,0.04)');
+      ctx.fillStyle=grd;ctx.fillRect(x,h-bar.h,bw*.6,bar.h);
+      ctx.fillStyle=`rgba(255,100,150,${a})`;ctx.fillRect(x,h-bar.h,bw*.6,2);
+    });
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawRebel(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  const rows=18,rh=h/rows;
+  const bars=Array.from({length:rows},(_,i)=>({w:Math.random()*w*.7+w*.1,phase:i*.3+Math.random()}));
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    const t=Date.now()*.001;
+    bars.forEach((bar,i)=>{
+      const target=(.3+Math.abs(Math.sin(t*1.5+bar.phase))*.7)*w;
+      bar.w+=(target-bar.w)*.06;
+      const y=i*rh+rh*.15, a=.05+Math.abs(Math.sin(t*2+bar.phase))*.09;
+      ctx.fillStyle=`rgba(212,255,0,${a})`;ctx.fillRect(0,y,bar.w,rh*.6);
+    });
+    ctx.beginPath();
+    for(let x=0;x<=w;x+=2){
+      const amp=28+Math.sin(t*.5)*10;
+      const y=h/2+Math.sin(x*.04+t*2)*amp+Math.sin(x*.08+t*3)*amp*.3;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='rgba(212,255,0,0.48)';ctx.lineWidth=2;ctx.stroke();
+    currentRaf=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function drawChaos(canvas) {
+  const {ctx,w,h} = setupCanvas(canvas);
+  function loop() {
+    ctx.clearRect(0,0,w,h);
+    for(let i=0;i<8;i++){
+      if(Math.random()>.68){
+        const y=Math.random()*h, gw=Math.random()*w*.6+w*.1, gx=Math.random()*(w-gw);
+        ctx.fillStyle=`rgba(204,34,0,${Math.random()*.13})`;
+        ctx.fillRect(gx,y,gw,1+Math.random()*2);
+      }
+    }
+    ctx.beginPath();
+    let x=0;
+    while(x<w){
+      const sw=3+Math.random()*8, amp=(Math.random()*.8+.1)*h*.42;
+      const y=h/2+(Math.random()>.5?1:-1)*amp;
+      ctx.lineTo(x,h/2);ctx.lineTo(x+sw*.3,y);ctx.lineTo(x+sw*.7,y);ctx.lineTo(x+sw,h/2);
+      x+=sw;
+    }
+    ctx.strokeStyle='rgba(204,34,0,0.58)';ctx.lineWidth=1.5;ctx.stroke();
+    const g=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.4);
+    g.addColorStop(0,'rgba(180,20,0,0.07)');g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    setTimeout(()=>{currentRaf=requestAnimationFrame(loop);},40);
+  }
+  loop();
+}
+
+// ════════════════════════════════════════
+// PROMPT BUILDER (for DeepSeek API) — 仅后端用
+// ════════════════════════════════════════
+function buildPrompt(choices) {
+  const lines = choices.map(c =>
+    `- ${c.axis}：在「${ROUNDS[c.round-1].a.title}」和「${ROUNDS[c.round-1].b.title}」之间，选择了「${c.title}」by ${c.artist}`
+  ).join('\n');
+  return `用户在8次音乐对比中的选择如下：\n${lines}\n\n请分析这个人的音乐审美人格。`;
+}
+
+const SYSTEM_PROMPT = `你是一位资深音乐评论人和人格分析师。
+根据用户在8次音乐对比中的选择，生成有温度、有洞察的音乐审美人格分析。
+严格返回JSON，不要有任何其他文字：
+{
+  "type": "人格英文名（2-4个词，有创意，如 The Ghost）",
+  "the": "The",
+  "tagline": "一句诗意的中文短句，20字以内",
+  "description": "两句中文性格描述，温暖且有洞察力，60字以内",
+  "tags": ["标签1","标签2","标签3"],
+  "artists": [["艺人名","genre"],["艺人名","genre"],["艺人名","genre"]],
+  "axes": { "energy": 0到100, "mood": 0到100, "structure": 0到100 },
+  "_key": "三位二进制字符串，如010，对应能量/色调/结构轴的0或1"
+}`;
+</script>
+</body>
+</html>
+
