@@ -21,7 +21,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'DEEPSEEK_API_KEY is not set' });
     }
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    // 使用 DeepSeek 的 OpenAI 兼容接口路径 /v1/chat/completions
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +42,8 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const text = await response.text();
       console.error('DeepSeek API error:', response.status, text);
-      return res.status(502).json({ error: 'DeepSeek API error', status: response.status });
+      // 把 DeepSeek 的错误信息也带回前端，方便排查
+      return res.status(502).json({ error: 'DeepSeek API error', status: response.status, body: text });
     }
 
     const data = await response.json();
