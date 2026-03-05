@@ -276,7 +276,18 @@ body::after {
 .result-tagline { font-family: 'Playfair Display', serif; font-size: 15px; font-style: italic; margin-top: 16px; line-height: 1.6; padding-left: 14px; }
 
 /* description */
-.result-description { font-size: 14px; font-weight: 300; line-height: 1.85; margin-bottom: 28px; opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards; }
+.result-description { font-size: 14px; font-weight: 300; line-height: 1.85; margin-bottom: 18px; opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards; }
+
+.ai-note {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.8;
+  margin-bottom: 30px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.32s forwards;
+}
 
 /* tags */
 .result-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 36px; opacity: 0; animation: fadeUp 0.6s ease 0.35s forwards; }
@@ -419,6 +430,9 @@ body::after {
       <p class="result-tagline" id="result-tagline"></p>
     </div>
     <p class="result-description" id="result-description"></p>
+    <p class="ai-note" id="ai-note">
+      基于你在「能量」「情绪色调」「结构感」三条轴上的 8 次选择，AI 为你构建了这个音乐人格肖像。
+    </p>
     <div class="result-tags" id="result-tags"></div>
     <div class="result-axes">
       <div class="result-section-label" id="axes-label">Taste Profile</div>
